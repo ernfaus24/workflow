@@ -1,0 +1,116 @@
+version: 2.1
+
+jobs:
+  checkout_and_unit_test:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run:
+          name: Unit tests
+          command: |
+            echo "Run unit tests here"
+            # ex: npm ci && npm test
+
+  deploy_backend:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run:
+          name: Deploy backend
+          command: |
+            echo "Deploy backend here"
+            # ex: ./deploy-backend.sh
+
+  integration_tests_backend:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run:
+          name: Integration tests (backend)
+          command: |
+            echo "Run integration tests here"
+            # ex: npm run test:integration
+
+  deploy_staging:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run:
+          name: Deploy staging
+          command: |
+            echo "Deploy to staging here"
+            # ex: ./deploy-staging.sh
+
+  acceptance_tests:
+    parameters:
+      shard:
+        type: integer
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run:
+          name: Acceptance tests shard << parameters.shard >>
+          command: |
+            echo "Run acceptance tests shard << parameters.shard >> here"
+            # Exemple si tu divises tes tests:
+            # ./run-acceptance.sh --shard << parameters.shard >> --total 4
+
+  deploy_production:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run:
+          name: Deploy production
+          command: |
+            echo "Deploy production here"
+            # ex: ./deploy-production.sh
+
+workflows:
+  pipeline:
+    jobs:
+      - checkout_and_unit_test
+      - deploy_backend:
+          requires:
+            - checkout_and_unit_test
+      - integration_tests_backend:
+          requires:
+            - deploy_backend
+      - deploy_staging:
+          requires:
+            - integration_tests_backend
+
+      # 4 jobs en parallèle après deploy_staging
+      - acceptance_tests:
+          name: acceptance_tests_1
+          shard: 1
+          requires:
+            - deploy_staging
+      - acceptance_tests:
+          name: acceptance_tests_2
+          shard: 2
+          requires:
+            - deploy_staging
+      - acceptance_tests:
+          name: acceptance_tests_3
+          shard: 3
+          requires:
+            - deploy_staging
+      - acceptance_tests:
+          name: acceptance_tests_4
+          shard: 4
+          requires:
+            - deploy_staging
+
+      # deploy_production attend que les 4 acceptance soient terminés
+      - deploy_production:
+          requires:
+            - acceptance_tests_1
+            - acceptance_tests_2
+            - acceptance_tests_3
+            - acceptance_tests_4
